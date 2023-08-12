@@ -31,16 +31,16 @@ struct AdaptivePagingScrollView: View {
     @State var highlightIndex: Int = 0
     @State var leftToRight: Bool = true
     
-    @Binding var segments: [[String]]
-    var texts: [String] {
+    @Binding var segments: [[Word]]
+    var texts: [Word] {
         return segments.flatMap({$0})
     }
     
-    var itemWidths: [CGFloat] {
-        return texts.compactMap { s in
-            return s.capitalized.textWidth
-        }
-    }
+//    var itemWidths: [CGFloat] {
+//        return texts.compactMap { s in
+//            return s.width
+//        }
+//    }
     
     let detector: CurrentValueSubject<CGFloat, Never>
     let publisher: AnyPublisher<CGFloat, Never>
@@ -51,7 +51,7 @@ struct AdaptivePagingScrollView: View {
     
     @State var currentWidths: [CGFloat] = []
     
-    init<A: View>(segments: Binding<[[String]]>,
+    init<A: View>(segments: Binding<[[Word]]>,
                   currentPageIndex: Binding<Int>,
                   activeSegmentIndex: Binding<Int>,
                   currentScrollOffset: Binding<CGFloat>,
@@ -147,29 +147,25 @@ struct AdaptivePagingScrollView: View {
                         segmentIndex = newSegmentIndex
                     }
                     
-//                    let offset = countOffset(for: currentPageIndex)
-//                    if offset != lastValue {
-//                    }
+                    self.updateHighlightBox()
+
                     withAnimation {
                         scrollView.scrollTo(currentPageIndex, anchor: .center)
-
                     }
                 }
                 .onChange(of: segmentIndex ){ newValue in
-                        self.updateHighlightBox()
-                    
+                    self.updateHighlightBox()
                 }
-                
             }
         }
         .onAppear {
             debugPrint("hai test appear")
-            self.leadingOffset = UIScreen.main.bounds.width / 2 - self.itemWidths[0]/2 - itemSpacing;
-            self.traingOffset = UIScreen.main.bounds.width / 2 - (self.itemWidths.last ?? 10)/2 - itemSpacing;
+            self.leadingOffset = UIScreen.main.bounds.width / 2 - self.texts[0].width/2 - itemSpacing;
+            self.traingOffset = UIScreen.main.bounds.width / 2 - (self.texts.last?.width ?? 10)/2 - itemSpacing;
 
-            
-            updateHighlightBox()
-           
+                
+                updateHighlightBox()
+          
         }
         .background(Color.black.opacity(0.00001))
         
@@ -177,13 +173,13 @@ struct AdaptivePagingScrollView: View {
     
     
     private func countOffset(for pageIndex: Int) -> CGFloat {
-        guard pageIndex >= 0, pageIndex < itemWidths.count else {
+        guard pageIndex >= 0, pageIndex < texts.count else {
             return leadingOffset
         }
         
         var activePageOffset: CGFloat = 0
         for i in 0 ..< pageIndex {
-            activePageOffset += itemWidths[i] + itemSpacing + 0.11
+            activePageOffset += texts[i].width + itemSpacing + 0.11
         }
         
         return -activePageOffset
@@ -196,11 +192,11 @@ struct AdaptivePagingScrollView: View {
         
         let offset = countLogicalOffset(offset)
         
-        var activePageOffset: CGFloat = -itemWidths[0]/2 - itemSpacing
+        var activePageOffset: CGFloat = -texts[0].width/2 - itemSpacing
         var floatIndex  = 0
         debugPrint("count page index offset \(offset)")
-        for i in 0 ..< itemWidths.count {
-            activePageOffset += itemWidths[i]
+        for i in 0 ..< texts.count {
+            activePageOffset += texts[i].width
             
             if i > 0 {
                 activePageOffset += itemSpacing
@@ -241,9 +237,8 @@ struct AdaptivePagingScrollView: View {
         let segment = segments[segmentIndex]
         
         //        var width: CGFloat = 0
-        for text in segment {
-            hilightWidth +=  text.capitalized.widthOfString(usingFont: UIFont.systemFont(ofSize: 12, weight: .regular)) + 20
-            
+        for word in segment {
+            hilightWidth +=  word.width
         }
         hilightWidth += itemSpacing * CGFloat(segment.count - 1)
         debugPrint("number of block \(segmentIndex)   -> \(hilightWidth)")
@@ -256,8 +251,8 @@ struct AdaptivePagingScrollView: View {
         var index = 0
         while index < segmentIndex {
             let segment = segments[index]
-            for text in segment {
-                leftOffset += (text.capitalized.widthOfString(usingFont: .systemFont(ofSize: 12)) + 20) + itemSpacing
+            for word in segment {
+                leftOffset += word.width + itemSpacing
             }
             index += 1
         }
@@ -271,9 +266,9 @@ struct AdaptivePagingScrollView: View {
         
         let startIndex = SegmentUtils.getStartIndexOfSegment(of: segments, from: segmentIndex)
         let segment = segments[segmentIndex]
-        currentWidths = Array(itemWidths[startIndex..<(startIndex + segment.count)])
+        currentWidths = Array(texts[startIndex..<(startIndex + segment.count)]).compactMap({$0.width})
         
-        debugPrint("hai updateHighlightBox  \(startIndex) -> \(segmentIndex) \(segment) ->\(segments.count)")
+        debugPrint("hai updateHighlightBox  \(startIndex) -> \(segmentIndex) \(segment.compactMap({$0.text})) ->\(segments.count)")
 
     }
 }

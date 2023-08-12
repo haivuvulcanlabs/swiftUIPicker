@@ -10,32 +10,29 @@ import UIKit
 
 struct SimpleTextView: View {
     
-    var card: String
-    var width: CGFloat
+    var word: Word
     var itemHeight: CGFloat
     var index: Int
     @Binding var currentPageIndex: Int
+    let onTapped: TappedAction?
+
+    public typealias TappedAction = (_ index: Int) -> Void
     
     var body: some View {
         VStack {
-           
-            
             Button {
-                currentPageIndex = index
+                onTapped?(index)
             } label: {
-                Text(card.capitalized)
+                Text(word.text.capitalized)
                     .foregroundColor((currentPageIndex) == index ? .black : .white)
                     .font(.system(size: 12, weight: .regular))
-                    .frame(width: CGFloat(width), height: itemHeight-16)
+                    .frame(width: word.width, height: itemHeight-16)
                     .background {
                         Color.gray
                     }
             }
-
         }
         .frame( height: itemHeight)
-
-        
     }
 }
 
@@ -44,9 +41,5 @@ extension String {
         let fontAttributes = [NSAttributedString.Key.font: font]
         let size = self.size(withAttributes: fontAttributes)
         return size.width
-    }
-    
-    var textWidth: CGFloat {
-        return self.widthOfString(usingFont: .systemFont(ofSize: 12)) + 20
     }
 }
