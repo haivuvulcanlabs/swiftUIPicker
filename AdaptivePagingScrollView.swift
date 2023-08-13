@@ -8,83 +8,45 @@
 import SwiftUI
 import Combine
 
-enum ScrollDirection {
-    case leftToRight
-    case rightToLeft
-}
-
 struct AdaptivePagingScrollView: View {
     private let borderWidth: CGFloat = 4
-    private let itemsView: [AnyView]
     private let itemSpacing: CGFloat
     private let itemHeight: CGFloat
     @State var leadingOffset: CGFloat = 0
     @State var traingOffset: CGFloat = 0
-    
-    private let scrollDampingFactor: CGFloat = 0.2
-    
-    @Binding var currentPageIndex: Int
-    @Binding var segmentIndex: Int
+        
     @State private var hightlightWidth: CGFloat = 100
     @State private var hightlightXOffset: CGFloat = 0
-//    @State private var segmentIndex: Int = 0
-    @State var highlightIndex: Int = 0
-    @State var leftToRight: Bool = true
     
     @Binding var segments: [[Word]]
+    @State private var scrolling: Bool = false
+    @State private var lastValue: CGFloat = 0
+    @State var segmentBoxWidths: [CGFloat] = []
+    
     var texts: [Word] {
         return segments.flatMap({$0})
     }
     
-//    var itemWidths: [CGFloat] {
-//        return texts.compactMap { s in
-//            return s.width
-//        }
-//    }
-    
+    var model = SegmentModel.shared
     let detector: CurrentValueSubject<CGFloat, Never>
     let publisher: AnyPublisher<CGFloat, Never>
-    @State private var scrolling: Bool = false
     
-    @State private var lastValue: CGFloat = 0
-    @State var position: CGPoint = .zero
     
-    @State var currentWidths: [CGFloat] = []
-    
-    init<A: View>(segments: Binding<[[Word]]>,
-                  currentPageIndex: Binding<Int>,
-                  activeSegmentIndex: Binding<Int>,
-                  currentScrollOffset: Binding<CGFloat>,
+    init(segments: Binding<[[Word]]>,
                   itemSpacing: CGFloat,
-                  itemHeight: CGFloat,
-                  @ViewBuilder content: () -> A) {
+                  itemHeight: CGFloat) {
         
-        let views = content()
         self._segments = segments
-        self.itemsView = [AnyView(views)]
         self.itemSpacing = itemSpacing
         self.itemHeight = itemHeight
         debugPrint("hai test init")
         
-        self._currentPageIndex = currentPageIndex
-        self._segmentIndex = activeSegmentIndex
-
         let detector = CurrentValueSubject<CGFloat, Never>(0)
         self.publisher = detector
             .dropFirst()
             .debounce(for: .seconds(0.2), scheduler: DispatchQueue.main)
             .eraseToAnyPublisher()
         self.detector = detector
-        
-
-        
-    }
-    
-    func handleScroll(_ offset: CGPoint) {
-        if !scrolling {
-            scrolling = true
-        }
-        detector.send(offset.x)
     }
     
     var body: some View {
@@ -99,13 +61,15 @@ struct AdaptivePagingScrollView: View {
                             .frame(width: leadingOffset, height: itemHeight)
                             .id(-1)
                         
-                        
-                        ForEach(itemsView.indices, id: \.self) { itemIndex in
-                            itemsView[itemIndex]
-                                .id(itemIndex )
-                                .frame(maxWidth: .infinity)
+                        ForEach(Array(texts.enumerated()), id: \.offset) { index, text in
+                            let itemWidth = text.width
+                            GeometryReader { screen in
+                                SimpleTextView(word: self.texts[index], itemHeight: itemHeight, index: index, onTapped: handleTapped)
                                 
+                            }
+                            .frame(width: CGFloat(itemWidth), height: itemHeight)
                         }
+                        
                         //rightView
                         Rectangle()
                             .fill(.clear)
@@ -114,7 +78,7 @@ struct AdaptivePagingScrollView: View {
                         
                     }
                     HStack{
-                        HightLightRectView(widths: $currentWidths, spacing: itemSpacing)
+                        HightLightRectView(widths: $segmentBoxWidths, spacing: itemSpacing)
                             .frame(width: hightlightWidth, height: itemHeight)
                             .offset(x: hightlightXOffset, y: 0)
                         Spacer()
@@ -129,7 +93,7 @@ struct AdaptivePagingScrollView: View {
                     newPageIndex = min(newPageIndex, texts.count - 1)
                     
                     debugPrint("Scrollview onEnded ->\(newPageIndex)")
-                    self.currentPageIndex = newPageIndex
+                    model.activePageIndex = newPageIndex
            
                     withAnimation{
                         scrollView.scrollTo(newPageIndex , anchor: .center)
@@ -140,20 +104,20 @@ struct AdaptivePagingScrollView: View {
                         self.scrolling = false
                     }
                 }
-                .onChange(of: currentPageIndex ){ newValue in
+                .onChange(of: model.activePageIndex ){ newValue in
                     debugPrint("hai test index \(newValue) -> \(hightlightWidth)")
                     let newSegmentIndex = SegmentUtils.getIndex(of: segments, from: newValue)
-                    if newSegmentIndex != segmentIndex {
-                        segmentIndex = newSegmentIndex
+                    if newSegmentIndex != model.activeSegmentIndex {
+                        model.activeSegmentIndex = newSegmentIndex
                     }
                     
                     self.updateHighlightBox()
 
                     withAnimation {
-                        scrollView.scrollTo(currentPageIndex, anchor: .center)
+                        scrollView.scrollTo(model.activePageIndex, anchor: .center)
                     }
                 }
-                .onChange(of: segmentIndex ){ newValue in
+                .onChange(of: model.activeSegmentIndex ){ newValue in
                     self.updateHighlightBox()
                 }
             }
@@ -163,12 +127,9 @@ struct AdaptivePagingScrollView: View {
             self.leadingOffset = UIScreen.main.bounds.width / 2 - self.texts[0].width/2 - itemSpacing;
             self.traingOffset = UIScreen.main.bounds.width / 2 - (self.texts.last?.width ?? 10)/2 - itemSpacing;
 
-                
-                updateHighlightBox()
-          
+            self.updateHighlightBox()
         }
         .background(Color.black.opacity(0.00001))
-        
     }
     
     
@@ -220,7 +181,7 @@ struct AdaptivePagingScrollView: View {
     }
     
     private func countCurrentScrollOffset() -> CGFloat {
-        return countOffset(for: currentPageIndex)
+        return countOffset(for: model.activePageIndex)
     }
     
     private func countLogicalOffset(_ trueOffset: CGFloat) -> CGFloat {
@@ -233,7 +194,7 @@ struct AdaptivePagingScrollView: View {
             return 0
         }
         
-        let segmentIndex = SegmentUtils.getIndex(of: segments, from: currentPageIndex)
+        let segmentIndex = SegmentUtils.getIndex(of: segments, from: model.activePageIndex)
         let segment = segments[segmentIndex]
         
         //        var width: CGFloat = 0
@@ -249,7 +210,7 @@ struct AdaptivePagingScrollView: View {
         var leftOffset: CGFloat = 0
         
         var index = 0
-        while index < segmentIndex {
+        while index < model.activeSegmentIndex {
             let segment = segments[index]
             for word in segment {
                 leftOffset += word.width + itemSpacing
@@ -261,15 +222,27 @@ struct AdaptivePagingScrollView: View {
         hightlightXOffset = leftOffset + leadingOffset + itemSpacing - borderWidth - borderPadding
         
         
-        hightlightWidth =  self.getHighlightWidth(from: currentPageIndex , name: "left") + borderWidth*2 + borderPadding * 2
+        hightlightWidth =  self.getHighlightWidth(from: model.activePageIndex , name: "left") + borderWidth*2 + borderPadding * 2
         
         
-        let startIndex = SegmentUtils.getStartIndexOfSegment(of: segments, from: segmentIndex)
-        let segment = segments[segmentIndex]
-        currentWidths = Array(texts[startIndex..<(startIndex + segment.count)]).compactMap({$0.width})
+        let startIndex = SegmentUtils.getStartIndexOfSegment(of: segments, from: model.activeSegmentIndex)
+        let segment = segments[model.activeSegmentIndex]
+        segmentBoxWidths = Array(texts[startIndex..<(startIndex + segment.count)]).compactMap({$0.width})
         
-        debugPrint("hai updateHighlightBox  \(startIndex) -> \(segmentIndex) \(segment.compactMap({$0.text})) ->\(segments.count)")
+        debugPrint("hai updateHighlightBox  \(startIndex) -> \(model.activeSegmentIndex) \(segment.compactMap({$0.text})) ->\(segments.count)")
 
+    }
+    
+    func handleTapped(_ index: Int) {
+        model.updateWord(at: index, with: "new work")
+        model.activePageIndex = index
+    }
+    
+    func handleScroll(_ offset: CGPoint) {
+        if !scrolling {
+            scrolling = true
+        }
+        detector.send(offset.x)
     }
 }
 

@@ -13,7 +13,6 @@ struct SimpleTextView: View {
     var word: Word
     var itemHeight: CGFloat
     var index: Int
-    @Binding var currentPageIndex: Int
     let onTapped: TappedAction?
 
     public typealias TappedAction = (_ index: Int) -> Void
@@ -24,7 +23,7 @@ struct SimpleTextView: View {
                 onTapped?(index)
             } label: {
                 Text(word.text.capitalized)
-                    .foregroundColor((currentPageIndex) == index ? .black : .white)
+                    .foregroundColor((SegmentModel.shared.activePageIndex) == index ? .black : .white)
                     .font(.system(size: 12, weight: .regular))
                     .frame(width: word.width, height: itemHeight-16)
                     .background {
