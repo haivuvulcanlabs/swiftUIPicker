@@ -10,18 +10,38 @@ import SwiftUI
 class SegmentModel: ObservableObject {
     static let shared = SegmentModel()
     
-    var texts: [[String]] = [["However","you","shouldn’t"], ["pass","a","range","that"], ["changes","at", "runtime."], ["If","you","use","a","variable"], ["that","changes"], ["at","runtime","to","define","the ","range"], ["the","list","displays","views","according"], ["to","the","initial","range","and"], ["ignores","any","subsequent"], ["updates","to","the","range."]]
     @Published var segments: [[Word]]
     @Published var activePageIndex: Int = 0
     @Published var activeSegmentIndex: Int = 0
     
     @Published var currentScrollOffset: CGFloat = 0
     
-    init() {
+    init(texts: [[String]] = []) {
+        
+        let texts1: [[String]] = [["If","you","use","a","variable"], ["that","changes"], ["at","runtime","to","define","the ","range"]]
+        let texts2: [[String]] = [["However","you","shouldn’t"], ["pass","a","range","that"], ["changes","at", "runtime."], ["ignores","any","subsequent"], ["updates","to","the","range."]]
+        let texts3: [[String]] = [["changes","at", "runtime."], ["If","you","use","a","variable"], ["that","changes"], ["at","runtime","to","define","the ","range"], ["the","list","displays","views","according"], ["to","the","initial","range","and"], ["ignores","any","subsequent"]]
+
+      segments = []
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            self.segments = self.initSegments(from: texts1)
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            self.segments = self.initSegments(from: texts2)
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+            self.segments = self.initSegments(from: texts3)
+        }
+    }
+    
+    func initSegments(from newTexts: [[String]]) -> [[Word]]{
         var indexedSegments: [[Word]] = []
-        for i in 0 ..< texts.count {
+        for i in 0 ..< newTexts.count {
             
-            let segment = texts[i]
+            let segment = newTexts[i]
             
             var indexedSegment: [Word] = []
             for j in 0 ..< segment.count {
@@ -32,7 +52,9 @@ class SegmentModel: ObservableObject {
             
             indexedSegments.append(indexedSegment)
         }
-        segments = indexedSegments
+//        segments = indexedSegments
+        
+        return indexedSegments
     }
     
     func splitCurrentSegment(at index: Int){
@@ -110,6 +132,15 @@ class SegmentModel: ObservableObject {
         }
         
         segments[index] = segment
+    }
+    
+    func addNewSegment( segment: [Word]) {
+        segments.append(segment)
+    }
+    
+    func addNewWord(word: Word) {
+        let segment: [Word] = [word]
+        segments.append(segment)
     }
     
 }

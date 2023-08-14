@@ -15,7 +15,7 @@ struct AdaptivePagingScrollView: View {
     @State var leadingOffset: CGFloat = 0
     @State var traingOffset: CGFloat = 0
         
-    @State private var hightlightWidth: CGFloat = 100
+    @State private var hightlightWidth: CGFloat = 0
     @State private var hightlightXOffset: CGFloat = 0
     
     @Binding var segments: [[Word]]
@@ -78,9 +78,12 @@ struct AdaptivePagingScrollView: View {
                         
                     }
                     HStack{
-                        HightLightRectView(widths: $segmentBoxWidths, spacing: itemSpacing)
-                            .frame(width: hightlightWidth, height: itemHeight)
-                            .offset(x: hightlightXOffset, y: 0)
+                        if !segments.isEmpty {
+                            HightLightRectView(widths: $segmentBoxWidths, spacing: itemSpacing)
+                                .frame(width: hightlightWidth, height: itemHeight)
+                                .offset(x: hightlightXOffset, y: 0)
+                        }
+                       
                         Spacer()
                     }
                 }
@@ -122,16 +125,22 @@ struct AdaptivePagingScrollView: View {
                 }
             }
         }
+        .onChange(of: segments ){ _ in
+            calculateLeadingOffset()
+        }
         .onAppear {
             debugPrint("hai test appear")
-            self.leadingOffset = UIScreen.main.bounds.width / 2 - self.texts[0].width/2 - itemSpacing;
-            self.traingOffset = UIScreen.main.bounds.width / 2 - (self.texts.last?.width ?? 10)/2 - itemSpacing;
-
-            self.updateHighlightBox()
+            calculateLeadingOffset()
         }
         .background(Color.black.opacity(0.00001))
     }
     
+    func calculateLeadingOffset() {
+        guard !texts.isEmpty else { return }
+        self.leadingOffset = UIScreen.main.bounds.width / 2 - self.texts[0].width/2 - itemSpacing;
+        self.traingOffset = UIScreen.main.bounds.width / 2 - (self.texts.last?.width ?? 10)/2 - itemSpacing;
+        self.updateHighlightBox()
+    }
     
     private func countOffset(for pageIndex: Int) -> CGFloat {
         guard pageIndex >= 0, pageIndex < texts.count else {

@@ -36,11 +36,11 @@ struct CustomPickerView: View {
                 }
                 Spacer()
                 
-                Text("PAGE INDEX: \(model.activePageIndex) : \(texts[model.activePageIndex].text)")
-                    .foregroundColor(.blue)
-                    .font(Font.system(size: 25))
-                
-                
+                if model.activePageIndex < texts.count {
+                    Text("PAGE INDEX: \(model.activePageIndex) : \(texts[model.activePageIndex].text)")
+                        .foregroundColor(.blue)
+                        .font(Font.system(size: 25))
+                }
             }
             
             VStack {
